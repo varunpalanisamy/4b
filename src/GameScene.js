@@ -62,7 +62,7 @@ class GameScene extends Phaser.Scene {
       this.platformLayer.setCollisionByExclusion([-1]);
   
       const spawn = map.getObjectLayer('Objects')?.objects.find(obj => obj.name === 'PlayerSpawn') || { x: 64, y: 64 };
-      this.spawnPoint = { x: spawn.x, y: spawn.y };      // ← store for later
+      this.spawnPoint = { x: spawn.x, y: spawn.y };     
 
   
       this.player = this.physics.add.sprite(spawn.x, spawn.y, 'player').setScale(0.25);
@@ -142,12 +142,12 @@ class GameScene extends Phaser.Scene {
               
 
         this.physics.add.overlap(this.player, this.flags, (player, flag) => {
-            console.log("✅ Flag overlap triggered!");
+            console.log("Flag overlap triggered!");
             if (this.gemsCollected >= this.totalGems) {
-              flag.destroy(); // Optional
+              flag.destroy(); 
               this.reachFlag();
             } else {
-              console.log("❌ You haven't collected all the gems yet!");
+              console.log("You haven't collected all the gems yet!");
             }
         });
           
@@ -187,7 +187,7 @@ class GameScene extends Phaser.Scene {
 
       const moving = this.cursors.left.isDown || this.cursors.right.isDown;
       if (moving) {
-      console.log('🔥 Trail!');  // debug line for continuous trail
+      console.log('🔥 Trail!'); 
         const trail = this.add.image(this.player.x, this.player.y, 'flame')
         .setScale(0.05)
         .setAlpha(1);
@@ -212,7 +212,7 @@ class GameScene extends Phaser.Scene {
         }
         this.player.anims.play('jump');
               
-        console.log('💥 Jump burst!');  // debug line for jump burst
+        console.log('💥 Jump burst!');  
           for (let i = 0; i < 6; i++) {
             const fx = this.add.image(this.player.x, this.player.y, 'flame')
               .setScale(0.1)
@@ -238,7 +238,7 @@ class GameScene extends Phaser.Scene {
     }
 
     checkSpikeCollision(player, tile) {
-      console.log("💥 Player hit spike tile index:", tile.index);
+      console.log("Player hit spike tile index:", tile.index);
       this.triggerGameOver();
     }
     
@@ -261,29 +261,25 @@ class GameScene extends Phaser.Scene {
       .setInteractive();
 
     this.readyImage.once('pointerdown', () => {
-      // 1) clean up the UI
+
       this.readyImage.destroy();
       this.gameOverImage.destroy();
 
-      // 2) stop following the player so we can pan freely
       this.cameras.main.stopFollow();
 
-      // 3) pan back to the spawn‐center over 1 second
       this.cameras.main.pan(
         this.spawnPoint.x, 
         this.spawnPoint.y, 
-        1000,                // duration in ms
-        'Linear',           // easing
-        true                // force the pan even if following
+        1000,            
+        'Linear',     
+        true              
       );
 
-      // 4) when the pan finishes, restart the scene
       this.cameras.main.once('camerapancomplete', () => {
         this.scene.restart();
       });
     });
   }
-
 
       
   
@@ -297,28 +293,23 @@ class GameScene extends Phaser.Scene {
   const cx = this.scale.width / 2;
   const cy = this.scale.height / 2;
 
-  // Completed graphic
   const completed = this.add.image(cx, cy, 'completed')
     .setScrollFactor(0)
     .setOrigin(0.5)
     .setScale(0.4)
     .setDepth(999);
 
-  // 3) compute elapsed time in seconds
   const elapsedMS = this.time.now - this.startTime;
   const totalSec = Math.floor(elapsedMS / 1000);
   const minutes = Math.floor(totalSec / 60);
   const seconds = totalSec % 60;
 
-  // format mm and ss as strings, pad seconds to two digits
   const mm = `${minutes}`;
   const ss = seconds < 10 ? `0${seconds}` : `${seconds}`;
-  const timeStr = `${mm}:${ss}`;  // e.g. "1:05"
+  const timeStr = `${mm}:${ss}`; 
 
-  console.log(`🏆 Final time: ${timeStr}`);
+  console.log(`Final time: ${timeStr}`);
 
-  // // 4) display “Score:” label just below completed.png
-  // const labelY = cy + completed.displayHeight * 0.5 + 20;
 
   const labelY = cy+60;
 
@@ -328,8 +319,7 @@ class GameScene extends Phaser.Scene {
     .setScale(0.5)
     .setDepth(999);
 
-  // display each character of timeStr as an image
-  // compute total width to center it
+
   const charSpacing = 20;  // tweak as needed
   const charImages = timeStr.split('').map(ch => {
     const key = ch === ':' ? 'text_dots' : `text_${ch}`;
@@ -341,7 +331,7 @@ class GameScene extends Phaser.Scene {
 
   charImages.forEach(key => {
     if (!key) return;
-    this.add.image(startX, labelY + 30, key)  // 30px below “Score:”
+    this.add.image(startX, labelY + 30, key)  
       .setScrollFactor(0)
       .setOrigin(0.5)
       .setScale(0.5)

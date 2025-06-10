@@ -28,10 +28,19 @@ class GameScene extends Phaser.Scene {
 
       this.load.image('spike', 'assets/spike.png');
 
+      this.load.image('completed', 'assets/completed.png');
+      this.load.image('text_score', 'assets/text_score.png');
+      this.load.image('text_dots', 'assets/text_dots.png');
+      for (let i = 0; i <= 9; i++) {
+        this.load.image(`text_${i}`, `assets/text_${i}.png`);
+      }
+
 
   
       this.load.audio('jumpSnd', 'assets/jump.mp3');
       this.load.audio('coinSnd', 'assets/coin.mp3');
+      this.load.image('flame', 'assets/flame_03.png');
+
     }
   
     create() {
@@ -53,6 +62,8 @@ class GameScene extends Phaser.Scene {
       this.platformLayer.setCollisionByExclusion([-1]);
   
       const spawn = map.getObjectLayer('Objects')?.objects.find(obj => obj.name === 'PlayerSpawn') || { x: 64, y: 64 };
+      this.spawnPoint = { x: spawn.x, y: spawn.y };      // ← store for later
+
   
       this.player = this.physics.add.sprite(spawn.x, spawn.y, 'player').setScale(0.25);
       this.player.setCollideWorldBounds(true);
@@ -106,7 +117,7 @@ class GameScene extends Phaser.Scene {
       if (spikeLayer) {
         spikeLayer.objects.forEach(obj => {
           const spike = this.spikes.create(obj.x, obj.y, 'spike')
-          .setOrigin(0, 1);
+          .setOrigin(0, 0.7);
           spike.body.setAllowGravity(false);
           spike.setImmovable(true);
         });
@@ -145,6 +156,14 @@ class GameScene extends Phaser.Scene {
   
       this.jumpSnd = this.sound.add('jumpSnd');
       this.coinSnd = this.sound.add('coinSnd');
+
+
+
+      this.startTime = this.time.now;
+
+
+
+
     }
   
     update() {
@@ -164,6 +183,22 @@ class GameScene extends Phaser.Scene {
         this.player.setVelocityX(0);
         if (onGround) this.player.anims.play('idle', true);
       }
+
+
+      const moving = this.cursors.left.isDown || this.cursors.right.isDown;
+      if (moving) {
+      console.log('🔥 Trail!');  // debug line for continuous trail
+        const trail = this.add.image(this.player.x, this.player.y, 'flame')
+        .setScale(0.05)
+        .setAlpha(1);
+        this.tweens.add({
+        targets: trail,
+        alpha: { from: 1, to: 0 },
+        duration: 300,
+        onComplete: () => trail.destroy()
+      });
+
+      } 
   
       if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
         if (onGround) {
@@ -176,6 +211,22 @@ class GameScene extends Phaser.Scene {
           this.jumpSnd.play();
         }
         this.player.anims.play('jump');
+              
+        console.log('💥 Jump burst!');  // debug line for jump burst
+          for (let i = 0; i < 6; i++) {
+            const fx = this.add.image(this.player.x, this.player.y, 'flame')
+              .setScale(0.1)
+              .setRotation(Phaser.Math.FloatBetween(0, Math.PI * 2));
+              this.tweens.add({
+              targets: fx,
+              x: fx.x + Phaser.Math.Between(-20, 20),
+              y: fx.y + Phaser.Math.Between(-20, 20),
+              alpha: { from: 1, to: 0 },
+              duration: 400,
+              onComplete: () => fx.destroy()
+            });
+         }
+
       }
     }
   
@@ -191,61 +242,114 @@ class GameScene extends Phaser.Scene {
       this.triggerGameOver();
     }
     
-    triggerGameOver() {
-      if (this.hasWon || this.isGameOver) return;
+      triggerGameOver() {
+    if (this.hasWon || this.isGameOver) return;
+    this.isGameOver = true;
 
-      this.isGameOver = true;
-      this.physics.pause();
-      this.player.setVelocity(0, 0);
-      this.player.anims.stop();
+    this.physics.pause();
+    this.player.setVelocity(0, 0);
+    this.player.anims.stop();
 
-      const centerX = this.scale.width / 2;
-      const centerY = this.scale.height / 2;
+    const cx = this.scale.width / 2;
+    const cy = this.scale.height / 2;
 
-      this.add.image(centerX, centerY - 30, 'gameover')
-        .setScrollFactor(0)
-        .setOrigin(0.5)
-        .setScale(0.5)
-        .setDepth(1000);
+    this.gameOverImage = this.add.image(cx, cy - 30, 'gameover')
+      .setScrollFactor(0).setOrigin(0.5).setScale(0.5).setDepth(1000);
 
-      const readyImage = this.add.image(centerX, centerY + 30, 'ready')
-        .setScrollFactor(0)
-        .setOrigin(0.5)
-        .setScale(0.5)
-        .setDepth(1000)
-        .setInteractive();  // Make it clickable
+    this.readyImage = this.add.image(cx, cy + 30, 'ready')
+      .setScrollFactor(0).setOrigin(0.5).setScale(0.5).setDepth(1000)
+      .setInteractive();
 
-      readyImage.on('pointerdown', () => {
-        console.log('🔁 Restarting game...');
+    this.readyImage.once('pointerdown', () => {
+      // 1) clean up the UI
+      this.readyImage.destroy();
+      this.gameOverImage.destroy();
+
+      // 2) stop following the player so we can pan freely
+      this.cameras.main.stopFollow();
+
+      // 3) pan back to the spawn‐center over 1 second
+      this.cameras.main.pan(
+        this.spawnPoint.x, 
+        this.spawnPoint.y, 
+        1000,                // duration in ms
+        'Linear',           // easing
+        true                // force the pan even if following
+      );
+
+      // 4) when the pan finishes, restart the scene
+      this.cameras.main.once('camerapancomplete', () => {
         this.scene.restart();
       });
-    }
+    });
+  }
+
 
       
   
     reachFlag() {
-        console.log("🏁 Flag hit! Reached the flag!");
-      
-        this.hasWon = true;
-        this.physics.pause();
-        this.player.setVelocity(0, 0);
-        this.player.anims.stop();
-      
-        // Use camera center in screen space, not scrollX/scrollY
-        const centerX = this.scale.width / 2;
-        const centerY = this.scale.height / 2;
+  if (this.hasWon) return;
+  this.hasWon = true;
+  this.physics.pause();
+  this.player.setVelocity(0, 0);
+  this.player.anims.stop();
 
-      
-        console.log("📍 Adjusted Center:", centerX, centerY);
-      
-        const completedImage = this.add.image(centerX, centerY, 'completed')
-          .setScrollFactor(0)
-          .setOrigin(0.5)
-          .setScale(0.4)         // 🎯 Shrinks the image
-          .setDepth(999);        // Ensures it's on top
-      
-        console.log("✅ Completed image displayed");
-      }
+  const cx = this.scale.width / 2;
+  const cy = this.scale.height / 2;
+
+  // Completed graphic
+  const completed = this.add.image(cx, cy, 'completed')
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setScale(0.4)
+    .setDepth(999);
+
+  // 3) compute elapsed time in seconds
+  const elapsedMS = this.time.now - this.startTime;
+  const totalSec = Math.floor(elapsedMS / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+
+  // format mm and ss as strings, pad seconds to two digits
+  const mm = `${minutes}`;
+  const ss = seconds < 10 ? `0${seconds}` : `${seconds}`;
+  const timeStr = `${mm}:${ss}`;  // e.g. "1:05"
+
+  console.log(`🏆 Final time: ${timeStr}`);
+
+  // // 4) display “Score:” label just below completed.png
+  // const labelY = cy + completed.displayHeight * 0.5 + 20;
+
+  const labelY = cy+60;
+
+  this.add.image(cx, labelY, 'text_score')
+    .setScrollFactor(0)
+    .setOrigin(0.5)
+    .setScale(0.5)
+    .setDepth(999);
+
+  // display each character of timeStr as an image
+  // compute total width to center it
+  const charSpacing = 20;  // tweak as needed
+  const charImages = timeStr.split('').map(ch => {
+    const key = ch === ':' ? 'text_dots' : `text_${ch}`;
+    return this.textures.exists(key) ? key : null;
+  });
+
+  const totalWidth = charImages.length * charSpacing;
+  let startX = cx - totalWidth / 2 + charSpacing / 2;
+
+  charImages.forEach(key => {
+    if (!key) return;
+    this.add.image(startX, labelY + 30, key)  // 30px below “Score:”
+      .setScrollFactor(0)
+      .setOrigin(0.5)
+      .setScale(0.5)
+      .setDepth(999);
+    startX += charSpacing;
+  });
+}
+
       
       
   }
